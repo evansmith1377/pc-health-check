@@ -1,0 +1,12 @@
+# Scan reports contain details about the PC they were run on - never commit them
+reports/
+*.html
+!docs/**/*.html
+
+# Build output
+dist/
+*.exe
+*.pdb
+
+# Screenshots from test runs
+*.png
