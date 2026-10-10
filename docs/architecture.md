@@ -34,9 +34,24 @@ App renders a card per ##RESULT as it arrives, updates the score ring and counts
 - **Run fixes:** the command is wrapped with a title and a "Finished" message, base64-encoded, and run with `powershell.exe -NoExit -EncodedCommand` in a new console window (`runas` when admin is needed).
 - `--screenshot <file.png> [--show-fix-dialog]` renders the window to a PNG after the scan and exits. This is useful for documentation and works even when the screen is locked.
 
+## Demo mode
+
+`-Demo` (script) or `--demo` (app) replaces every check with a fixed sample result for a fictional "DEMO-PC", taken from `$script:DemoResults`. `Invoke-Check` returns the sample instead of running the check body, and `$script:Ctx` is preset so quick fixes appear as they would for real findings. The report header uses the demo computer name, so demo output never contains details of the machine it ran on. The tests check this. Screenshots in `docs/images` are generated from demo mode by `scripts/make-screenshots.ps1`.
+
+## Versioning and releases
+
+`build.ps1 -Version yyyy.MM.dd.HHmm` writes `obj/AssemblyInfo.g.cs` with the version attributes. With no `-Version`, it uses the current UTC date and time. Assembly versions drop leading zeros (`2026.10.09.0815` -> `2026.10.9.815`), and the informational version keeps the original string. The app shows its version in the sidebar footer.
+
+The Release workflow computes the version from the run's UTC time, builds, runs the full test suite, and publishes a GitHub release tagged `v<version>` with the exe, the script and their SHA-256 hashes.
+
+## Tests
+
+`tests/PCHealthCheck.Tests.ps1` loads the script's functions and `$script:` variables from its AST without running any checks, so helper and quick-fix logic can be tested directly. It then runs demo and real scans in a child `powershell.exe`, the same way the app does. `tests/App.Tests.ps1` builds the exe and uses `--demo --screenshot` to drive it end to end. The exit code is the number of results rendered.
+
 ## Adding a check
 
 1. Add an `Invoke-Check` block in the right section of `PCHealthCheck.ps1`.
-2. If it should have quick fixes, record what they need in `$script:Ctx` and add a case to `Get-QuickFixes`.
-3. Bump `StandardCheckCount` / `DeepCheckCount` in `gui/App.cs` (used for the progress bar).
-4. Run `build.ps1`.
+2. Add a matching entry to `$script:DemoResults` (standard checks only).
+3. If it should have quick fixes, record what they need in `$script:Ctx` and add a case to `Get-QuickFixes`.
+4. Bump `StandardCheckCount` / `DeepCheckCount` in `gui/App.cs` (used for the progress bar), and the counts in the tests.
+5. Run `build.ps1` and `tests/run-tests.ps1`.

@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Test
+        shell: pwsh
+        run: ./tests/run-tests.ps1 -SkipBuild
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: TestResults.xml
+          if-no-files-found: ignore

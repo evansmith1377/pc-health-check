@@ -11,6 +11,10 @@
 .EXAMPLE
     .\PCHealthCheck.ps1
     .\PCHealthCheck.ps1 -NoOpen -OutputFolder C:\Reports
+    .\PCHealthCheck.ps1 -Demo          # sample results for a made-up PC (for screenshots and testing)
+
+.NOTES
+    Provided "as is", without warranty of any kind. See LICENSE and DISCLAIMER.md.
 #>
 [CmdletBinding()]
 param(
@@ -18,10 +22,13 @@ param(
     [switch]$Deep,
     [string]$OutputFolder,
     # Machine-readable progress for the GUI: "##START <name>", "##RESULT <json>", "##REPORT <path>" lines on stdout.
-    [switch]$Stream
+    [switch]$Stream,
+    # Show fixed sample results for a fictional PC instead of scanning this one. Nothing about this PC is reported.
+    [switch]$Demo
 )
 
 if ($Stream) { [Console]::OutputEncoding = [Text.Encoding]::UTF8 }
+if ($Demo) { $Deep = $false }
 
 if (-not $OutputFolder) { $OutputFolder = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'reports' }
 
@@ -236,13 +243,20 @@ function Get-QuickFixes([string]$Name, $r) {
 }
 
 function Invoke-Check([string]$Category, [string]$Name, [scriptblock]$Body) {
+    if ($Demo -and -not $script:DemoResults.Contains($Name)) { return }
     if ($Stream) { [Console]::Out.WriteLine("##START $Name") }
     else { Write-Host ('  {0,-28}' -f $Name) -NoNewline }
-    try {
-        $r = & $Body
-    } catch {
-        $r = New-Result 'Info' "This check couldn't run on your PC." @($_.Exception.Message)
-        $r.Failed = $true
+    if ($Demo) {
+        $d = $script:DemoResults[$Name]
+        $r = New-Result $d[0] $d[1] $d[2] $d[3]
+        if ($Stream) { Start-Sleep -Milliseconds 60 }   # lets the GUI animate results arriving
+    } else {
+        try {
+            $r = & $Body
+        } catch {
+            $r = New-Result 'Info' "This check couldn't run on your PC." @($_.Exception.Message)
+            $r.Failed = $true
+        }
     }
     $r.Fixes = @()
     if (-not $r.Failed -and ($r.Status -in 'Warning', 'Problem' -or $r.Advice)) {
@@ -316,6 +330,70 @@ $script:BugcheckNames = @{
     0x139 = 'a driver corrupted a system structure'; 0x7F = 'the processor hit an unexpected fault'
     0x101 = 'the processor stopped responding'
 }
+
+# ---------------------------------------------------------------- demo data
+
+# Sample results for a fictional PC, used by -Demo: check name -> (status, summary, details, advice).
+# Invoke-Check returns these instead of running the real check, so nothing about this PC is reported.
+$script:DemoComputer = 'DEMO-PC'
+$script:DemoOs = 'Microsoft Windows 11 Pro'
+$script:DemoResults = [ordered]@{
+    'Windows & uptime' = @('Good', 'Microsoft Windows 11 Pro, running for 2 days, 4 hours.',
+        @('Windows: Microsoft Windows 11 Pro (version 10.0.26100, build 26100)', 'Computer: Example Computer Co. Model X1', 'Computer name: DEMO-PC'), '')
+    'Battery' = @('Warning', 'Your battery only holds 54% of its original charge.',
+        @('Charge: 81%', 'Power: Plugged in', 'Battery health: holds 54% of its original capacity'),
+        'Batteries wear out with age. If it no longer lasts long enough for you, a battery replacement will bring it back to full life.')
+    'Windows activation' = @('Good', 'Windows is activated.', @('Edition: Windows(R), Professional edition', 'Status: Activated'), '')
+    'Processor (CPU)' = @('Good', 'Processor is at 12%, with plenty of headroom.',
+        @('Processor: Example 8-Core Processor (16 logical cores)', 'Current load: 12%', 'Busy right now: msedge (4%)'), '')
+    'Memory (RAM)' = @('Warning', '84% of your 16.0 GB of memory is in use.',
+        @('Installed: 16.0 GB', 'In use: 13.4 GB (84%)', 'Available: 2.6 GB', 'Biggest user: msedge (3.1 GB)', 'Biggest user: Teams (1.2 GB)', 'Biggest user: Photoshop (1.1 GB)'),
+        'Memory is getting tight. Closing unused apps and browser tabs will help keep things snappy.')
+    'Startup apps' = @('Warning', '17 apps launch when you sign in, which can slow startup.',
+        @('Spotify  (HKU\Run)', 'Steam  (HKU\Run)', 'Discord  (Startup)', 'OneDrive  (HKU\Run)', 'Adobe Updater  (HKLM\Run)'),
+        'Open Task Manager (Ctrl+Shift+Esc) > Startup apps and disable anything you do not need right away. They will still work when you open them yourself.')
+    'Disk space' = @('Problem', 'Running low on space on C:.',
+        @('C: (Windows): 18.2 GB free of 476.9 GB (4% free)', 'D: (Data): 612.4 GB free of 931.5 GB (66% free)'),
+        'Windows needs free space to update and run smoothly. Try Settings > System > Storage > Cleanup recommendations, empty the Recycle Bin, or move large files (videos, downloads) elsewhere.')
+    'Drive health' = @('Good', 'All 2 drive(s) and their file systems report healthy.',
+        @('Example NVMe SSD (SSD, 476.9 GB): Healthy', 'Example HDD (HDD, 931.5 GB): Healthy', 'File system on C: (NTFS): Healthy', 'File system on D: (NTFS): Healthy'), '')
+    'Temporary files' = @('Warning', 'Your temp folder has grown to 3.4 GB.', @('Size: 3.4 GB'),
+        'These are leftover files apps forgot to clean up. Run Disk Cleanup (search for it in Start) or use Settings > System > Storage > Temporary files to safely remove them.')
+    'Internet connection' = @('Good', "You're online with a quick response time (14 ms).",
+        @('Connected adapter: Wi-Fi (Example Wi-Fi 6 Adapter, 1.2 Gbps)', 'Wi-Fi signal: 88%', 'Response time to the internet: 14 ms (lost 0 of 4 test packets)', 'Website name lookup (DNS): working'), '')
+    'Antivirus' = @('Good', 'Protected by Windows Defender, up to date.', @('Windows Defender: on, definitions up to date', 'Microsoft Defender real-time protection: on'), '')
+    'Firewall' = @('Good', 'The Windows firewall is on for all network types.', @('Domain networks: on', 'Private networks: on', 'Public networks: on'), '')
+    'Device security' = @('Good', 'Secure Boot is on, TPM 2.0 is present, and BitLocker is on.',
+        @('Secure Boot: on', 'TPM security chip: present (version 2.0)', 'BitLocker drive encryption (C:): on'), '')
+    'App updates' = @('Info', '6 app(s) have updates available.',
+        @('7-Zip: 24.08 -> 24.09', 'Mozilla Firefox: 130.0 -> 131.0.2', 'VLC media player: 3.0.20 -> 3.0.21', 'Git: 2.46.0 -> 2.47.0', 'Notepad++: 8.6.9 -> 8.7', 'PowerToys: 0.84.1 -> 0.85.0'),
+        'Updates fix bugs and security holes. Update them from inside each app, or open Terminal and run "winget upgrade --all" to update them all at once.')
+    'Windows Update' = @('Warning', 'The last successful update was 52 days ago.',
+        @('2024 cumulative update for Windows 11 (example)', 'Security intelligence update for Microsoft Defender (example)'),
+        'Open Settings > Windows Update and click Check for updates.')
+    'Pending restart' = @('Good', 'No restart needed.', @(), '')
+    'System errors (7 days)' = @('Warning', 'Your PC shut down unexpectedly 2 time(s) this week.',
+        @('Kernel-Power (2x): The system has rebooted without cleanly shutting down first.', 'EventLog (2x): The previous system shutdown was unexpected.'),
+        'Unexpected shutdowns come from crashes, power cuts, or holding the power button. If you did not cause them, check for overheating and make sure Windows and drivers are up to date.')
+    'App crashes (7 days)' = @('Info', "3 app crash(es) this week. That's normal from time to time.", @('Photoshop.exe crashed 2 time(s)', 'Steam.exe crashed 1 time(s)'), '')
+    'Devices & drivers' = @('Good', 'All your devices are working properly.', @(), '')
+    'Core Windows services' = @('Good', 'All 6 essential Windows services are running.', @(), '')
+    'Crash history (30 days)' = @('Good', 'No blue-screen crashes in the last 30 days.', @(), '')
+    'Recent driver installs' = @('Info', "2 driver(s) were added in the last 30 days, 2 of them for devices in use.",
+        @('Example Wi-Fi 6 Adapter (version 23.60.0.1)', 'Example Bluetooth Adapter (version 23.60.0.2)'), '')
+    'Hardware error reports' = @('Good', 'No hardware errors were reported this month.',
+        @('Memory: 2 module(s), 16.0 GB total, running at 3200 MT/s', 'Hardware error reports (30 days): none', 'Windows Memory Diagnostic: never run'), '')
+    'Graphics & network drivers' = @('Warning', 'NVIDIA GeForce GTX 1660: driver is over a year old.',
+        @('NVIDIA GeForce GTX 1660: version 31.0.15.3623, released Jun 2023 (over a year old)', 'Example Wi-Fi 6 Adapter: version 23.60.0.1, released Aug 2024'),
+        'Graphics and network drivers are the most common cause of blue screens, so keeping them current matters. Check for a newer version from NVIDIA: the NVIDIA app or nvidia.com/drivers.')
+    'Reliability score' = @('Warning', "Windows rates your PC's stability as fair: 5.8 out of 10, down from 7.9 a week ago.",
+        @('Now: 5.8 out of 10', '7 days ago: 7.9 out of 10', '30 days ago: 8.4 out of 10'),
+        'To see what lowered it day by day, search Start for "reliability history" to open Reliability Monitor.')
+    'Backups & restore points' = @('Warning', 'No file backup was found.',
+        @('OneDrive folder backup: not set up', 'File History: not set up', 'Restore points: run the deep scan to check (needs administrator rights)'),
+        'If your drive failed today, your files would be lost. Turn on OneDrive folder backup (Settings > Accounts > Windows backup) or File History to an external drive. Other backup apps are not detected by this check.')
+}
+if ($Demo) { $script:Ctx = @{ NoBackup = $true; OutdatedVendors = @('NVIDIA') } }
 
 # ---------------------------------------------------------------- checks
 
@@ -1167,6 +1245,8 @@ $sections = foreach ($cat in ($Results | ForEach-Object Category | Select-Object
 }
 
 $generated = Get-Date
+$reportComputer = if ($Demo) { $script:DemoComputer } else { $env:COMPUTERNAME }
+$reportOs = if ($Demo) { $script:DemoOs } else { $os.Caption }
 
 # Favicon: the app icon (blue-violet rounded square with a white pulse line), same shapes as gui\make-icon.ps1.
 $faviconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
@@ -1242,11 +1322,12 @@ footer { margin-top: 40px; font-size: 12px; color: var(--muted); text-align: cen
     <span class="pill good">$($counts.Good) looking good</span>
     <span class="pill info">$($counts.Info) for your information</span>
   </div>
-  <div class="meta">$(E $env:COMPUTERNAME) &middot; $(E $os.Caption) &middot; checked $(E $generated.ToString('f'))$(if ($Deep) { ' &middot; deep scan included' } elseif (-not $isAdmin) { ' &middot; ran without admin rights' })</div>
+  <div class="meta">$(E $reportComputer) &middot; $(E $reportOs) &middot; checked $(E $generated.ToString('f'))$(if ($Deep) { ' &middot; deep scan included' } elseif (-not $isAdmin) { ' &middot; ran without admin rights' })</div>
 </header>
 $attentionHtml
 $($sections -join "`n")
-<footer>Generated by PC Health Check. All checks are read-only; nothing on your PC was changed.</footer>
+<footer>Generated by PC Health Check$(if ($Demo) { ' in demo mode (sample results for a fictional PC)' }). All checks are read-only; nothing on your PC was changed.<br>
+Provided "as is", without warranty of any kind. You use this report and any fixes at your own risk.</footer>
 </main>
 </body>
 </html>

@@ -1,0 +1,64 @@
+name: Release
+
+# Run from the Actions tab (or `gh workflow run release.yml`). The version is the UTC date and
+# time of the run, e.g. v2026.10.10.1423, so every release is unique and sorts chronologically.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Version from date/time (UTC)
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Date).ToUniversalTime().ToString('yyyy.MM.dd.HHmm')
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version"
+
+      - name: Build
+        shell: pwsh
+        run: ./build.ps1 -Version '${{ steps.version.outputs.version }}'
+
+      - name: Test
+        shell: pwsh
+        run: ./tests/run-tests.ps1 -SkipBuild
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $tag = "v$env:VERSION"
+          Copy-Item PCHealthCheck.ps1 dist/
+          $exeHash = (Get-FileHash dist/PCHealthCheck.exe -Algorithm SHA256).Hash.ToLower()
+          $ps1Hash = (Get-FileHash dist/PCHealthCheck.ps1 -Algorithm SHA256).Hash.ToLower()
+          $notes = @(
+            '## Download'
+            ''
+            '- **PCHealthCheck.exe**: the app. Download and double-click; no install needed (Windows 10 / 11).'
+            '- **PCHealthCheck.ps1**: the diagnostics script on its own, if you prefer PowerShell.'
+            ''
+            'The exe is not code-signed, so Windows SmartScreen may say "Windows protected your PC" the first time. Choose **More info -> Run anyway**.'
+            ''
+            '| File | SHA-256 |'
+            '|---|---|'
+            "| PCHealthCheck.exe | ``$exeHash`` |"
+            "| PCHealthCheck.ps1 | ``$ps1Hash`` |"
+            ''
+            '> **Disclaimer:** provided "as is", without warranty of any kind. You use it, and any quick fixes, at your own risk. See [DISCLAIMER.md](https://github.com/${{ github.repository }}/blob/main/DISCLAIMER.md).'
+            ''
+          ) -join "`n"
+          gh release create $tag dist/PCHealthCheck.exe dist/PCHealthCheck.ps1 `
+            --title "PC Health Check $tag" --notes $notes --generate-notes --target $env:GITHUB_SHA
