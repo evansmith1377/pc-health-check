@@ -1,0 +1,13 @@
+# Keeps SHA-pinned actions and dependencies current. A pin against a stale SHA
+# still runs, but stops receiving upstream security fixes, so pins without this
+# quietly rot. Grouped so updates arrive as a few reviewable PRs rather than a
+# trickle nobody merges. Seeded from claude-seed (github-hygiene).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

@@ -1,0 +1,84 @@
+{
+  "source": "evansmith1377/claude-seed",
+  "commit": "77860563a8161cc6163eac5a07046c5c4eb8a741",
+  "seededAt": "2026-10-30",
+  "capabilities": {
+    "claude-md-house-style": {
+      "members": null,
+      "variant": null,
+      "placeholders": {
+        "CHECK_COMMAND": "the full check (above): ./tests/run-tests.ps1"
+      },
+      "adaptations": [
+        "CLAUDE.md written from the survey above the section (commands, layout, read-only scanning, no dependencies, C# 5, docs per check, CRLF scripts)"
+      ],
+      "files": {
+        "CLAUDE.md": "sha256:b535640f061ba83e03456badc8ee9027177224104ff019c53d5ed3b0c8d63387"
+      }
+    },
+    "permissions-baseline": {
+      "members": null,
+      "variant": [
+        "powershell",
+        "powershell-tool"
+      ],
+      "placeholders": {},
+      "adaptations": [
+        "the powershell pack, which the catch-up issue predates (claude-seed#9)",
+        "allow ./build.ps1 and ./tests/run-tests.ps1 by exact invocation in both tools (pwsh -NoProfile -File in Bash and PowerShell, and direct in PowerShell); PCHealthCheck.ps1 itself stays prompted"
+      ],
+      "files": {
+        ".claude/settings.json#permissions": "sha256:4f123bc7b534c119d58b951737907d42043cd000431853868e8cfdde394303ba",
+        ".claude/README.md": "sha256:ae6ccc1abb7e9c8181e787f781bbdb17e473d0bd4903cff3c8e42a1513d3216f"
+      }
+    },
+    "guard-secrets": {
+      "members": null,
+      "variant": null,
+      "placeholders": {},
+      "adaptations": [
+        ".gitattributes: *.sh text eol=lf, since * text=auto would check hooks out with CRLF on Windows"
+      ],
+      "files": {
+        ".claude/hooks/guard-secrets.sh": "sha256:9a525b5bc2ddeb823b9255ebd26a62cf997ef5900da00ae026407e75fa004233",
+        ".claude/settings.json#hooks.PreToolUse:.claude/hooks/guard-secrets.sh": "sha256:6d6d4160cccdba5f9e93be0c865ce34f44b212d7c32e39f1d8c4a353d6c12516",
+        ".claude/README.md": "sha256:6e6d030ad9408f7ed5a7a63cffb17bc827c5103a0456d03f86da52e5fa5f191a"
+      }
+    },
+    "github-hygiene": {
+      "members": [
+        "dependabot",
+        "pr-template"
+      ],
+      "variant": null,
+      "placeholders": {
+        "CHECK_COMMAND": "./tests/run-tests.ps1"
+      },
+      "adaptations": [
+        "dependabot: actions only (no package manager)",
+        "pr-template adds read-only scanning, stock-Windows and docs checks"
+      ],
+      "files": {
+        ".github/dependabot.yml": "sha256:84733086b09b5c557ee9f27f8c6c9719bf934ac7c28a45fc18d816dfa1ffe8b5",
+        ".github/pull_request_template.md": "sha256:a8aaa04bb8d9e592af975a0f6e260897696ef99c1689bc5bf82825ec941ff12f"
+      }
+    },
+    "roster-review": {
+      "members": [
+        "code-reviewer",
+        "security-reviewer",
+        "performance-reviewer",
+        "maintainability-reviewer"
+      ],
+      "variant": null,
+      "placeholders": {},
+      "adaptations": [],
+      "files": {
+        ".claude/agents/code-reviewer.md": "sha256:b75a6f57d6623a4c103261d1af76aba7034dbd23a6c81787e2d0bcbb78c2093d",
+        ".claude/agents/security-reviewer.md": "sha256:5450ddfca61ae2c4784cb0ca29e8c2c89323756ea2993c79ac1a0ebe21add241",
+        ".claude/agents/performance-reviewer.md": "sha256:ca07e26f0c07ddb44c3d3985f8248f789a50cf943d77cceee8d2d25478d266b9",
+        ".claude/agents/maintainability-reviewer.md": "sha256:2446bd05c67bb46920e95210c115789296b983e3ff918d9a62f8f8edad7fe855"
+      }
+    }
+  }
+}
