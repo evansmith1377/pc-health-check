@@ -11,3 +11,6 @@ updates:
     groups:
       actions:
         patterns: ['*']
+      security-updates:
+        applies-to: security-updates
+        patterns: ['*']
