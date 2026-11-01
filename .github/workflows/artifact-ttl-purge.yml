@@ -1,0 +1,25 @@
+# A backstop for workflow artifacts that were uploaded without their own short
+# retention-days. It is not the primary cleanup: every upload should set one.
+# Seeded from claude-seed (github-hygiene).
+#
+# Keep expire-in above zero. "0days" deletes every artifact on every run,
+# including one uploaded seconds before the cron fired that a release job was
+# about to download.
+name: Artifact TTL purge
+on:
+  schedule:
+    - cron: '30 1 1,15 * *' # 01:30 UTC on the 1st and 15th
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write # deleting artifacts needs it; nothing else does
+    steps:
+      - uses: evansmith1377/artifact-ttl-purge@3f5e10fcb65990f23d6a95f42a26430439c06c7f # v1.1.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          expire-in: 7days
